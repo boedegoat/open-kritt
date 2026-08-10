@@ -29,6 +29,8 @@ services:
       # independently restricted by BACKEND_BIND_ADDRESS above.
       BACKEND_HOST: 0.0.0.0
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-}
+      # 1 = mark the auth session cookie Secure (HTTPS deployments only).
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-}
       DATABASE_URL: ${DATABASE_URL:-postgresql://open_kritt:open_kritt_password@db:5432/open_kritt?schema=public}
       # Raw environment keys stay in the engine. The backend receives non-secret
       # presence flags and manages the shared login/key stores used by Accounts.

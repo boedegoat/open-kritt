@@ -354,6 +354,36 @@ model PostProcessMetadata {
   @@schema("workflows")
 }
 
+/// An admin user allowed to sign in to the web UI. The first registered user
+/// is the initial admin; registration closes once any user exists.
+model User {
+  id           BigInt         @id @default(autoincrement())
+  username     String         @unique
+  passwordHash String         @map("password_hash")
+  insertedAt   DateTime       @default(now()) @map("inserted_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sessions     AuthSession[]
+
+  @@map("users")
+  @@schema("public")
+}
+
+/// A login session. Only the sha-256 hash of the session token is stored.
+model AuthSession {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt   @map("user_id")
+  tokenHash  String   @unique @map("token_hash")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "auth_sessions_user_id_idx")
+  @@index([expiresAt], map: "auth_sessions_expires_at_idx")
+  @@map("auth_sessions")
+  @@schema("public")
+}
+
 /// Links a vulnerability to the post-script applied to it.
 model Triage {
   id              BigInt   @id @default(autoincrement())

@@ -4,6 +4,8 @@ import cors from 'cors';
 import pinoHttp from 'pino-http';
 
 import { logger } from './lib/logger.js';
+import { createRequireAuth } from './lib/auth.js';
+import authRouter from './routes/auth.js';
 import overviewRouter from './routes/overview.js';
 import workflowsRouter from './routes/workflows.js';
 import stepsRouter from './routes/steps.js';
@@ -63,7 +65,7 @@ export function corsOptions(env = process.env) {
   };
 }
 
-export function createApp({ env = process.env } = {}) {
+export function createApp({ env = process.env, requireAuth = createRequireAuth() } = {}) {
   const app = express();
 
   app.use(cors(corsOptions(env)));
@@ -81,6 +83,11 @@ export function createApp({ env = process.env } = {}) {
   );
 
   app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'open-kritt-backend' }));
+
+  // Sign-in/sign-up endpoints stay public; every other /api route below is
+  // protected by the session cookie.
+  app.use('/api/auth', authRouter);
+  app.use('/api', requireAuth);
 
   app.use('/api/overview', overviewRouter);
   app.use('/api/workflows', workflowsRouter);
@@ -105,6 +112,10 @@ export function createApp({ env = process.env } = {}) {
   app.use((err, req, res, next) => {
     if (err instanceof ValidationError) {
       return res.status(422).json({ error: 'Validation failed.', errors: err.errors });
+    }
+    // Errors carrying an explicit HTTP status (e.g. auth errors).
+    if (err?.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
     }
     // Bad BigInt conversion from a malformed :id param.
     if (err instanceof SyntaxError && /Cannot convert .* to a BigInt/.test(err.message)) {

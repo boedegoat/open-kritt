@@ -44,6 +44,14 @@ export class ApiError extends Error {
   }
 }
 
+// Invoked when an authenticated request comes back 401 (expired or revoked
+// session). The auth context registers a handler that flips the UI back to the
+// sign-in screen.
+let unauthorizedHandler = null;
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = handler;
+}
+
 export function apiErrorMessages(error, { includeField = true } = {}) {
   const details = Array.isArray(error?.errors)
     ? error.errors
@@ -61,6 +69,7 @@ export function apiErrorMessages(error, { includeField = true } = {}) {
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}/api${path}`, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -72,6 +81,9 @@ async function request(path, options = {}) {
   } catch {
     /* no body */
   }
+  if (res.status === 401 && !path.startsWith('/auth/')) {
+    unauthorizedHandler?.();
+  }
   if (!res.ok) {
     throw new ApiError(data?.error || `Request failed (${res.status})`, res.status, data?.errors);
   }
@@ -79,6 +91,11 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  // auth
+  authStatus: () => request('/auth/status', { cache: 'no-store' }),
+  login: (username, password) => request('/auth/login', { method: 'POST', body: { username, password } }),
+  register: (username, password) => request('/auth/register', { method: 'POST', body: { username, password } }),
+  logout: () => request('/auth/logout', { method: 'POST' }),
   // overview
   overview: () => request('/overview'),
   // non-secret engine runtime settings

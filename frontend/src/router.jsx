@@ -1,5 +1,8 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
+import Logo from './components/Logo.jsx';
+import { useAuth } from './context/auth.jsx';
+import Login from './pages/Login.jsx';
 import Overview from './pages/Overview.jsx';
 import Workflows from './pages/Workflows.jsx';
 import WorkflowDetail from './pages/WorkflowDetail.jsx';
@@ -19,12 +22,37 @@ import AiGeneration from './pages/AiGeneration.jsx';
 import Accounts from './pages/Accounts.jsx';
 import Settings from './pages/Settings.jsx';
 
+// Guards the whole app behind a valid session. While the session is being
+// checked a splash is shown; anonymous visitors are redirected to /login.
+function RequireAuth({ children }) {
+  const { status, user } = useAuth();
+  if (status === 'loading') {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-logo">
+            <Logo size={34} />
+            <span>open·kritt</span>
+          </div>
+          <div className="auth-status">Checking…</div>
+        </div>
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
 // Data router (createBrowserRouter) so pages can use useBlocker to guard
 // against navigating away from unsaved work.
 export const router = createBrowserRouter(
   [
     {
-      element: <Layout />,
+      element: (
+        <RequireAuth>
+          <Layout />
+        </RequireAuth>
+      ),
       children: [
         { index: true, element: <Overview /> },
         { path: 'workflows', element: <Workflows /> },
@@ -52,6 +80,7 @@ export const router = createBrowserRouter(
         { path: '*', element: <Overview /> },
       ],
     },
+    { path: '/login', element: <Login /> },
   ],
   { future: { v7_relativeSplatPath: true } }
 );

@@ -25,7 +25,7 @@ async function requestRouter(router) {
 }
 
 async function requestApp(path, options) {
-  const server = createApp().listen(0, '127.0.0.1');
+  const server = createApp({ requireAuth: (req, res, next) => next() }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   const { port } = server.address();
 

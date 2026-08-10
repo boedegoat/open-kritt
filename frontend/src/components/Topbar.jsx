@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useChrome } from '../context/ui.jsx';
+import { useAuth } from '../context/auth.jsx';
 import CommandPalette from './CommandPalette.jsx';
 
 export default function Topbar() {
   const { chrome } = useChrome();
+  const { user, logout } = useAuth();
   const crumbs = chrome.crumbs || [];
   const primary = chrome.primaryAction;
   const [searchOpen, setSearchOpen] = useState(false);
@@ -151,6 +153,34 @@ export default function Topbar() {
               {primary.label}
             </button>
           ) : null}
+          {user && (
+            <div className="topbar-session" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span
+                className="mono"
+                title={`Signed in as ${user.username}`}
+                style={{ fontSize: 12, color: 'var(--text-2)' }}
+              >
+                {user.username}
+              </span>
+              <button
+                type="button"
+                onClick={() => void logout()}
+                style={{
+                  height: 30,
+                  padding: '0 12px',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  background: 'var(--surface)',
+                  color: 'var(--text-2)',
+                  fontSize: 12.5,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
