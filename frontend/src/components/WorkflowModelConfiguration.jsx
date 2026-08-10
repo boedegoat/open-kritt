@@ -3,7 +3,7 @@ import ModelConfiguration, {
   modelConfigurationForCatalog,
   modelConfigurationIsValid,
 } from './ModelConfiguration.jsx';
-import { thinkingEffortsForModel } from '../lib/modelProviders.js';
+import { thinkingEffortForModelChange, thinkingEffortsForModel } from '../lib/modelProviders.js';
 import {
   enableModelOverrides,
   modelOverridesDraft,
@@ -81,6 +81,26 @@ function modeButtonStyle(active, disabled) {
   };
 }
 
+/**
+ * Applies a change to the scan-level model configuration. When post-processing
+ * uses the scan model, its stored thinking effort must stay supported by the
+ * new provider/model/harness — otherwise the whole configuration is invalid
+ * (and e.g. the run-settings Save button stays disabled). A deliberately
+ * different effort is preserved when it is still supported.
+ */
+export function workflowBaseConfigurationChange({ value, configuration, postProcessingModelOverride, catalog }) {
+  const next = { ...value, ...configuration };
+  if (postProcessingModelOverride) return next;
+  const postEfforts = thinkingEffortsForModel(catalog, next.model_provider, next.model, THINKING_EFFORTS, next.harness);
+  if (!postEfforts.includes(next.post_processing_thinking_effort)) {
+    next.post_processing_thinking_effort = thinkingEffortForModelChange(
+      next.post_processing_thinking_effort,
+      postEfforts
+    );
+  }
+  return next;
+}
+
 export default function WorkflowModelConfiguration({
   value,
   onChange,
@@ -154,7 +174,9 @@ export default function WorkflowModelConfiguration({
         )}
         <ModelConfiguration
           value={value}
-          onChange={(configuration) => onChange({ ...value, ...configuration })}
+          onChange={(configuration) =>
+            onChange(workflowBaseConfigurationChange({ value, configuration, postProcessingModelOverride, catalog }))
+          }
           providers={providers}
           catalog={catalog}
           catalogError={catalogError}

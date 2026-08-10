@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { configuredModelCatalog } from '../lib/modelProviders.js';
 import WorkflowModelConfiguration, {
+  workflowBaseConfigurationChange,
   workflowModelConfigurationForCatalog,
   workflowModelConfigurationIsValid,
 } from './WorkflowModelConfiguration.jsx';
@@ -17,7 +18,7 @@ const catalog = configuredModelCatalog({
       input: 'select',
       status: 'ready',
       defaultModel: 'gpt-5-codex',
-      models: [{ id: 'gpt-5-codex', thinkingEfforts: ['high'] }],
+      models: [{ id: 'gpt-5-codex', thinkingEfforts: ['medium', 'high'] }],
     },
     {
       provider: 'claude',
@@ -107,5 +108,76 @@ describe('WorkflowModelConfiguration', () => {
     expect(html).toContain('DEPTH 0');
     expect(html).toContain('DEPTH 1');
     expect(html).toContain('2 steps');
+  });
+
+  it('keeps the post-processing effort valid when the scan model switches provider', () => {
+    const value = {
+      model: 'gpt-5-codex',
+      model_provider: 'codex',
+      harness: 'codex',
+      thinking_effort: 'high',
+      post_processing_model_override: false,
+      post_processing_thinking_effort: 'high',
+    };
+    const next = workflowBaseConfigurationChange({
+      value,
+      configuration: {
+        model: 'claude-sonnet',
+        model_provider: 'claude',
+        harness: 'claude-code',
+        thinking_effort: 'medium',
+      },
+      postProcessingModelOverride: false,
+      catalog,
+    });
+    expect(next.post_processing_thinking_effort).toBe('medium');
+    expect(
+      workflowModelConfigurationIsValid(
+        {
+          ...value,
+          ...next,
+        },
+        [0, 1],
+        providers,
+        catalog
+      )
+    ).toBe(true);
+  });
+
+  it('preserves a deliberately different post-processing effort while it is still supported', () => {
+    const next = workflowBaseConfigurationChange({
+      value: {
+        model: 'gpt-5-codex',
+        model_provider: 'codex',
+        harness: 'codex',
+        thinking_effort: 'high',
+        post_processing_model_override: false,
+        post_processing_thinking_effort: 'medium',
+      },
+      configuration: {
+        model: 'gpt-5-codex',
+        model_provider: 'codex',
+        harness: 'codex',
+        thinking_effort: 'high',
+      },
+      postProcessingModelOverride: false,
+      catalog,
+    });
+    expect(next.post_processing_thinking_effort).toBe('medium');
+  });
+
+  it('leaves the post-processing configuration alone when it is overridden', () => {
+    const next = workflowBaseConfigurationChange({
+      value: {
+        ...configured,
+        post_processing_model_override: true,
+        post_processing_thinking_effort: 'medium',
+      },
+      configuration: { model: 'gpt-5-codex', model_provider: 'codex', harness: 'codex', thinking_effort: 'high' },
+      postProcessingModelOverride: true,
+      catalog,
+    });
+    expect(next.post_processing_thinking_effort).toBe('medium');
+    expect(next.post_processing_model_provider).toBe('claude');
   });
 });
