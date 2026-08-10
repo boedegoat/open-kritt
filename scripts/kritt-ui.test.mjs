@@ -41,6 +41,7 @@ class ScriptedTerminal {
     this.throwOnChoose = throwOnChoose;
     this.calls = [];
     this.notices = [];
+    this.chooses = [];
   }
 
   async enter() {
@@ -61,11 +62,11 @@ class ScriptedTerminal {
 
   async choose(config) {
     this.calls.push(`choose:${config.title}`);
+    this.chooses.push(config);
     if (this.throwOnChoose) throw this.throwOnChoose;
     assert.notEqual(this.choices.length, 0, `unexpected choice for ${config.title}`);
     return this.choices.shift();
   }
-
   async readInput(config) {
     this.calls.push(`input:${config.title}`);
     assert.notEqual(this.inputs.length, 0, `unexpected input for ${config.title}`);
@@ -214,6 +215,29 @@ test('interactive setup saves OpenRouter in .env and the shared managed store', 
   assert.deepEqual(result, { code: 0 });
   assert.equal(env.OPENROUTER_API_KEY, 'openrouter-hidden');
   assert.equal(store.credentials.openrouter, 'openrouter-hidden');
+});
+
+test('interactive setup lists and saves DeepSeek in .env and the shared managed store', async (t) => {
+  const project = await createProject(t);
+  const terminal = new ScriptedTerminal({
+    choices: ['setup', 'DEEPSEEK_API_KEY', 'set', 'back', 'back', 'back'],
+    inputs: ['deepseek-hidden'],
+  });
+
+  const result = await runInteractiveCli({ ...project, terminal });
+  const env = parseEnv(await readFile(project.envFile, 'utf8'));
+  const store = JSON.parse(
+    await readFile(join(project.rootDir, '.data', 'engine', 'credentials', 'providers.json'), 'utf8')
+  );
+
+  assert.deepEqual(result, { code: 0 });
+  assert.equal(env.DEEPSEEK_API_KEY, 'deepseek-hidden');
+  assert.equal(store.credentials.deepseek, 'deepseek-hidden');
+  const setupScreen = terminal.chooses.find((config) => config.title === 'Setup');
+  assert.ok(
+    setupScreen?.options?.some((option) => option.id === 'DEEPSEEK_API_KEY'),
+    'setup screen offers the DeepSeek API key item'
+  );
 });
 
 test('interactive Codex import shows a specific credential error', async (t) => {

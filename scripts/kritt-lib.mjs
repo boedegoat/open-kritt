@@ -8,7 +8,7 @@ import { createInterface } from 'node:readline/promises';
 
 export const PROVIDER_KEYS = ['CODEX_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY'];
 export const CODEX_LOGIN_STATUS_KEY = 'CODEX_LOGIN_CONFIGURED';
-const MANAGED_PROVIDER_LABELS = {
+export const MANAGED_PROVIDER_LABELS = {
   openrouter: 'OpenRouter API key',
   deepseek: 'DeepSeek API key',
 };
@@ -676,7 +676,7 @@ function renderStatus(status, io) {
     io,
     `${status.claudeLoginPresent ? '✓' : '○'} Claude login ${status.claudeLoginPresent ? 'present' : 'not set'}`
   );
-  for (const item of ENVIRONMENT_ITEMS.slice(0, 4)) {
+  for (const item of ENVIRONMENT_ITEMS.slice(0, 5)) {
     const present = status.valuesPresent[item.key];
     write(io, `${present ? '✓' : '○'} ${item.label} ${present ? 'present' : 'not set'}`);
   }

@@ -251,6 +251,32 @@ test('setup stores OpenRouter in .env and the managed credential store', async (
   assert.doesNotMatch(io.output.text, new RegExp(secret));
 });
 
+test('setup stores DeepSeek in .env and the managed credential store', async (t) => {
+  const project = await createProject(t);
+  const io = testIo();
+  const secret = 'deepseek-managed-secret';
+
+  await runSetup({
+    ...project,
+    io,
+    prompter: answers({ ask: ['7', '1', '9'], secret: [secret] }),
+  });
+
+  const env = parseEnv(await readFile(project.envFile, 'utf8'));
+  const store = JSON.parse(
+    await readFile(join(project.rootDir, '.data', 'engine', 'credentials', 'providers.json'), 'utf8')
+  );
+  assert.equal(env.DEEPSEEK_API_KEY, secret);
+  assert.equal(store.credentials.deepseek, secret);
+  assert.deepEqual(store.disabledEnvironmentProviders, []);
+  assert.doesNotMatch(io.output.text, new RegExp(secret));
+
+  const status = await getSetupStatus(project);
+  assert.deepEqual(status.managedProviders, ['deepseek']);
+  assert.equal(status.valuesPresent.DEEPSEEK_API_KEY, true);
+  assert.match(io.output.text, /✓ DeepSeek API key present/);
+});
+
 test('setup migrates Codex accounts registered by the UI into .env', async (t) => {
   const project = await createProject(t);
   await ensureEnvFile(project);
