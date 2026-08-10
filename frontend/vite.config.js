@@ -20,10 +20,17 @@ function resolveAppVersion() {
 }
 const appVersion = resolveAppVersion();
 
-// Dev server proxies /api to the backend so the frontend can use same-origin calls.
-// VITE_PROXY_TARGET is the *server-side* backend address (e.g. http://backend:3002
-// inside Docker, http://localhost:3002 locally). The browser keeps using relative
-// /api unless VITE_API_BASE_URL is set explicitly.
+// Dev server and preview server proxy /api to the backend so the frontend can
+// use same-origin calls. VITE_PROXY_TARGET is the *server-side* backend address
+// (e.g. http://backend:3002 inside Docker, http://localhost:3002 locally). The
+// browser keeps using relative /api unless VITE_API_BASE_URL is set explicitly.
+const apiProxy = {
+  '/api': {
+    target: process.env.VITE_PROXY_TARGET || 'http://localhost:3002',
+    changeOrigin: true,
+  },
+};
+
 export default defineConfig({
   plugins: [react()],
   define: {
@@ -31,11 +38,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
-      '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3002',
-        changeOrigin: true,
-      },
-    },
+    proxy: apiProxy,
+  },
+  preview: {
+    port: 5173,
+    host: true,
+    proxy: apiProxy,
   },
 });
