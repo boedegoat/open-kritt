@@ -22,7 +22,7 @@ const PROVIDER_THINKING_EFFORTS = {
   codex: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   claude: ['low', 'medium', 'high', 'xhigh', 'max'],
   openrouter: ['default', 'low', 'medium', 'high', 'xhigh', 'max'],
-  deepseek: ['default'],
+  deepseek: ['default', 'low', 'medium', 'high', 'xhigh', 'max'],
 };
 
 const HARNESS_THINKING_EFFORTS = {

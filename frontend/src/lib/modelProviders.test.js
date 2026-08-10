@@ -56,6 +56,20 @@ const modelCatalog = configuredModelCatalog({
         { id: 'moonshotai/kimi-code', label: 'Moonshot: Kimi Code', thinkingEfforts: ['default'] },
       ],
     },
+    {
+      provider: 'deepseek',
+      input: 'select',
+      status: 'ready',
+      defaultModel: 'deepseek-v4-flash',
+      models: [
+        {
+          id: 'deepseek-v4-flash',
+          label: 'DeepSeek V4 Flash',
+          isDefault: true,
+          thinkingEfforts: ['default', 'low', 'medium', 'high', 'xhigh', 'max'],
+        },
+      ],
+    },
   ],
 });
 
@@ -242,6 +256,20 @@ describe('model provider harnesses', () => {
   it('defaults OpenRouter to Claude Code and retains Codex as an advanced option', () => {
     expect(harnessesForModelProvider('openrouter')).toEqual(['claude-code', 'codex']);
     expect(defaultHarnessForModelProvider('openrouter')).toBe('claude-code');
+  });
+
+  it('pairs DeepSeek with the Codex harness and offers efforts up to max', () => {
+    expect(harnessesForModelProvider('deepseek')).toEqual(['codex']);
+    expect(defaultHarnessForModelProvider('deepseek')).toBe('codex');
+    expect(thinkingEffortsForModel(modelCatalog, 'deepseek', 'deepseek-v4-flash', ['default'])).toEqual([
+      'default',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ]);
+    expect(thinkingEffortsForModel(modelCatalog, 'deepseek', 'deepseek-v4-flash', ['default'])).not.toContain('ultra');
   });
 
   it('returns no harness for an unsupported provider', () => {

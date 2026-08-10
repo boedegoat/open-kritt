@@ -473,7 +473,7 @@ def fetch_deepseek_models(api_key: str, timeout_seconds: float) -> tuple[list[di
             {
                 "model": model_id,
                 "displayName": raw.get("name") or model_id,
-                "supportedReasoningEfforts": ["default"],
+                "supportedReasoningEfforts": ["default", "low", "medium", "high", "xhigh", "max"],
                 "isDefault": model_id == DEEPSEEK_DEFAULT_MODEL_ID,
             }
         )
