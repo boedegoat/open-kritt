@@ -1243,9 +1243,9 @@ export async function runStart(options = {}) {
     return 1;
   }
 
-  write(context.io, 'Starting open-kritt. Press Ctrl+C to stop the stack.');
+  write(context.io, 'Starting open-kritt in the background. Logs: docker compose logs -f. Stop: docker compose down.');
   try {
-    const result = await context.runner('docker', ['compose', 'up', '--build'], {
+    const result = await context.runner('docker', ['compose', 'up', '-d', '--build'], {
       cwd: context.rootDir,
       stdio: 'inherit',
     });
@@ -1280,9 +1280,9 @@ Run ./kritt as your normal user, not with sudo. Use Import local login instead o
 
 Checks that .env and at least one model provider credential or Codex login are configured, then runs:
 
-  docker compose up --build
+  docker compose up -d --build
 
-The process stays attached to Compose; press Ctrl+C to stop the stack.`,
+The stack starts detached in the background. Follow logs with docker compose logs -f and stop it with docker compose down (data persists in ./.data).`,
 };
 
 export function showHelp(command, io = defaultIo()) {

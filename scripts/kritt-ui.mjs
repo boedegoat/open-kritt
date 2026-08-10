@@ -753,9 +753,11 @@ async function runStartScreen(terminal, context) {
   const choice = await terminal.choose({
     title: 'Start',
     subtitle: 'Ready to launch',
-    details: ['The terminal will switch to Docker Compose. Ctrl+C there stops the running stack.'],
+    details: [
+      'The stack starts detached in the background. Stop it with docker compose down; follow logs with docker compose logs -f.',
+    ],
     options: [
-      { id: 'launch', label: 'Start open-kritt', description: 'Run docker compose up --build' },
+      { id: 'launch', label: 'Start open-kritt', description: 'Run docker compose up -d --build' },
       { id: 'back', label: 'Back', description: 'Return to the main menu' },
     ],
   });

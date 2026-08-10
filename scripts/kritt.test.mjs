@@ -171,7 +171,7 @@ test('start treats a saved Claude subscription login as model access', async (t)
   assert.equal(status.providerPresent, true);
   assert.equal(exitCode, 0);
   assert.deepEqual(commands, [
-    { command: 'docker', args: ['compose', 'up', '--build'], options: { cwd: project.rootDir, stdio: 'inherit' } },
+    { command: 'docker', args: ['compose', 'up', '-d', '--build'], options: { cwd: project.rootDir, stdio: 'inherit' } },
   ]);
 });
 
@@ -605,7 +605,7 @@ test('start blocks GitHub-only configuration and launches Compose with model acc
   });
   assert.equal(exitCode, 0);
   assert.deepEqual(commands, [
-    { command: 'docker', args: ['compose', 'up', '--build'], options: { cwd: project.rootDir, stdio: 'inherit' } },
+    { command: 'docker', args: ['compose', 'up', '-d', '--build'], options: { cwd: project.rootDir, stdio: 'inherit' } },
   ]);
   assert.equal((await stat(join(project.rootDir, '.data', 'codex-accounts', 'cli', '.codex'))).mode & 0o777, 0o700);
 });
