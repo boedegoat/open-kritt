@@ -52,6 +52,7 @@ LOGGER = logging.getLogger("open_kritt_engine.workspace")
 SCAN_RUNNER_WORKDIR = "/workspace"
 SELECTED_AGENT_SKILLS_SLUG = "open-kritt-selected-skills"
 OPENROUTER_CODEX_BASE_URL = "https://openrouter.ai/api/v1"
+DEEPSEEK_CODEX_BASE_URL = "https://api.deepseek.com/v1"
 JOB_UID_BASE = 100_000
 JOB_UID_SPAN = 2_000_000_000
 _SHARED_WORKSPACE_LOCKS: dict[str, threading.Lock] = {}
@@ -165,7 +166,7 @@ def prepare_job_workspace(
     if needs_codex_home and codex_source:
         _copy_credential_files(Path(codex_source), codex_home, ("auth.json",))
     elif needs_codex_home:
-        _prepare_openrouter_codex_home(codex_home)
+        _prepare_codex_provider_home(codex_home, selected_provider)
     if needs_claude_home and selected_provider == "claude":
         claude_oauth_expires_at_ms = prepare_claude_job_credentials(
             Path(claude_source or os.getenv("CLAUDE_HOME", "/root/.claude")),
@@ -271,6 +272,35 @@ def _prepare_openrouter_codex_home(codex_home: Path):
         ),
     )
     config.chmod(0o600)
+
+
+def _prepare_deepseek_codex_home(codex_home: Path):
+    """Create the minimum Codex config needed for a DeepSeek scan."""
+
+    codex_home.mkdir(parents=True, exist_ok=True)
+    config = codex_home / "config.toml"
+    _atomic_write_text(
+        config,
+        "\n".join(
+            [
+                "[model_providers.deepseek]",
+                'name = "DeepSeek"',
+                f'base_url = "{DEEPSEEK_CODEX_BASE_URL}"',
+                'env_key = "DEEPSEEK_API_KEY"',
+                'wire_api = "responses"',
+                "",
+            ]
+        ),
+    )
+    config.chmod(0o600)
+
+
+def _prepare_codex_provider_home(codex_home: Path, provider: str | None):
+    provider = (provider or "").strip().lower() or None
+    if provider == "openrouter":
+        _prepare_openrouter_codex_home(codex_home)
+    elif provider == "deepseek":
+        _prepare_deepseek_codex_home(codex_home)
 
 
 def _prepare_claude_config(claude_home: Path):

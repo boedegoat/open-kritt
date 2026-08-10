@@ -6,10 +6,11 @@ import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 
-export const PROVIDER_KEYS = ['CODEX_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY'];
+export const PROVIDER_KEYS = ['CODEX_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY'];
 export const CODEX_LOGIN_STATUS_KEY = 'CODEX_LOGIN_CONFIGURED';
 const MANAGED_PROVIDER_LABELS = {
   openrouter: 'OpenRouter API key',
+  deepseek: 'DeepSeek API key',
 };
 const CODEX_LOGIN_CONTAINER_USER_HOME = '/open-kritt-login';
 const CODEX_LOGIN_CONTAINER_HOME = `${CODEX_LOGIN_CONTAINER_USER_HOME}/.codex`;
@@ -36,6 +37,11 @@ export const ENVIRONMENT_ITEMS = [
     key: 'OPENROUTER_API_KEY',
     label: 'OpenRouter API key',
     info: 'Used for supported OpenRouter-compatible model and harness selections.',
+  },
+  {
+    key: 'DEEPSEEK_API_KEY',
+    label: 'DeepSeek API key',
+    info: 'Used for supported DeepSeek model selections.',
   },
   {
     key: 'GITHUB_TOKEN',
@@ -522,7 +528,9 @@ export async function getSetupStatus({ rootDir, envFile = join(rootDir, '.env'),
   const valuesPresent = Object.fromEntries(
     ENVIRONMENT_ITEMS.map(({ key }) => [
       key,
-      Boolean(values[key]) && !(key === 'OPENROUTER_API_KEY' && disabledProviders.includes('openrouter')),
+      Boolean(values[key]) &&
+        !(key === 'OPENROUTER_API_KEY' && disabledProviders.includes('openrouter')) &&
+        !(key === 'DEEPSEEK_API_KEY' && disabledProviders.includes('deepseek')),
     ])
   );
   const codexAuthInspections = await Promise.all(
@@ -790,6 +798,10 @@ async function manageEnvironmentItem(context, item) {
       const status = await getSetupStatus(context);
       await saveManagedProviderCredential(status.credentialsPath, 'openrouter', value);
     }
+    if (item.key === 'DEEPSEEK_API_KEY') {
+      const status = await getSetupStatus(context);
+      await saveManagedProviderCredential(status.credentialsPath, 'deepseek', value);
+    }
     await setEnvValue(envFile, item.key, value);
     write(io, `${item.label} saved.`);
   } else if (action === '2') {
@@ -797,6 +809,10 @@ async function manageEnvironmentItem(context, item) {
       if (item.key === 'OPENROUTER_API_KEY') {
         const status = await getSetupStatus(context);
         await disableManagedProviderCredential(status.credentialsPath, 'openrouter');
+      }
+      if (item.key === 'DEEPSEEK_API_KEY') {
+        const status = await getSetupStatus(context);
+        await disableManagedProviderCredential(status.credentialsPath, 'deepseek');
       }
       await setEnvValue(envFile, item.key, '');
       write(io, `${item.label} unset.`);
@@ -1172,11 +1188,12 @@ export async function runSetup(options = {}) {
     write(context.io, '4) OpenAI API key');
     write(context.io, '5) Anthropic API key');
     write(context.io, '6) OpenRouter API key');
-    write(context.io, '7) GitHub token');
-    write(context.io, '8) Finish setup');
+    write(context.io, '7) DeepSeek API key');
+    write(context.io, '8) GitHub token');
+    write(context.io, '9) Finish setup');
     const choice = (await context.prompter.ask('Choose an item: ')).toLowerCase();
 
-    if (choice === '8' || choice === 'q' || choice === 'quit') break;
+    if (choice === '9' || choice === 'q' || choice === 'quit') break;
     if (choice === '1') {
       await manageCodexLogin(context);
       continue;

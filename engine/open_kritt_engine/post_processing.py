@@ -131,6 +131,23 @@ def _int(value: Any) -> int:
     return int(value)
 
 
+def _validation_retry_feedback(error: OutputValidationError, schema: dict[str, Any]) -> str:
+    """Tell the model exactly what was wrong so a retry can fix the output."""
+
+    schema_json = json.dumps(schema, sort_keys=True, indent=2)
+    return (
+        "Your previous final response was rejected because it did not match the required output schema.\n"
+        f"Validation error: {error}\n"
+        "Do not continue or repeat the analysis. Return only the final JSON object now, with every "
+        "required field present, in the exact structure defined by the schema. Do not include markdown "
+        "fences, commentary, or any text outside the JSON object.\n"
+        "The exact JSON Schema you must satisfy is:\n"
+        "```json\n"
+        f"{schema_json}\n"
+        "```"
+    )
+
+
 def _json_text(value: Any, max_chars: int = 4000) -> str:
     if value is None:
         return ""
@@ -567,11 +584,15 @@ class PostProcessor:
             last_error = None
             last_exception: Exception | None = None
             attempt_errors: list[str] = []
+            validation_feedback = ""
             for attempt in range(1, self._retry_count() + 2):
                 started = now_utc()
                 usage = None
                 codex_session_id = None
                 result = None
+                attempt_prompt = final_prompt
+                if validation_feedback:
+                    attempt_prompt = f"{final_prompt}\n\n{validation_feedback}"
                 try:
                     with provider_account_lease(
                         getattr(prepared.workspace, "provider_account_provider", None),
@@ -579,7 +600,7 @@ class PostProcessor:
                         data_dir=getattr(self.config, "data_dir", None),
                     ):
                         harness_arguments = {
-                            "prompt": final_prompt,
+                            "prompt": attempt_prompt,
                             "schema": schema,
                             "repo_dir": prepared.repo_dir,
                             "model": selection.model,
@@ -615,6 +636,8 @@ class PostProcessor:
                     return result.payload, usage, codex_session_id, checked_out_commit
                 except (HarnessError, OutputValidationError, ValueError) as exc:
                     last_exception = exc
+                    if isinstance(exc, OutputValidationError):
+                        validation_feedback = _validation_retry_feedback(exc, schema)
                     detail = (
                         f"{exc.public_message} Diagnostic: {exc.code}." if isinstance(exc, HarnessError) else str(exc)
                     )

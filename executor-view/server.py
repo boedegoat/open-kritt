@@ -186,6 +186,15 @@ OPENROUTER_TIMEOUT_SECONDS = float(
 OPENROUTER_KEY_CACHE_SECONDS = int(
     os.getenv("EXECUTOR_VIEW_OPENROUTER_KEY_CACHE_SECONDS", "60")
 )
+DEEPSEEK_BALANCE_URL = os.getenv(
+    "EXECUTOR_VIEW_DEEPSEEK_BALANCE_URL", "https://api.deepseek.com/user/balance"
+)
+DEEPSEEK_TIMEOUT_SECONDS = float(
+    os.getenv("EXECUTOR_VIEW_DEEPSEEK_TIMEOUT_SECONDS", "5")
+)
+DEEPSEEK_KEY_CACHE_SECONDS = int(
+    os.getenv("EXECUTOR_VIEW_DEEPSEEK_KEY_CACHE_SECONDS", "60")
+)
 DEEP_ACCOUNT_REFRESH = os.getenv("EXECUTOR_VIEW_DEEP_ACCOUNT_REFRESH", "0").lower() in (
     "1",
     "true",
@@ -213,6 +222,7 @@ CODEX_ACCOUNT_CACHE = {"expires_at": 0.0, "data": None}
 CODEX_USAGE_CACHE = {}
 CLAUDE_USAGE_CACHE = {}
 OPENROUTER_KEY_CACHE = {"expires_at": 0.0, "credential": None, "data": None}
+DEEPSEEK_KEY_CACHE = {"expires_at": 0.0, "credential": None, "data": None}
 ACCOUNT_OVERVIEW_CACHE = {"expires_at": 0.0, "data": None}
 SCAN_STATUS_ACTIONS = {"pause": "paused", "resume": "running", "start": "running"}
 CYBER_RISK_FLAG_TEXT = (
@@ -315,7 +325,7 @@ def internal_request_path_allowed(method, path):
         method == "GET"
         and len(parts) == 3
         and parts[:2] == ["api", "accounts"]
-        and parts[2] in {"codex", "claude", "openrouter"}
+        and parts[2] in {"codex", "claude", "openrouter", "deepseek"}
     ):
         return True
     return (
@@ -741,6 +751,7 @@ def accounts_for_state(force=False):
         empty_codex_accounts(),
         empty_claude_accounts(),
         fetch_openrouter_accounts(force=False),
+        empty_deepseek_accounts(),
         fetched=False,
     )
 
@@ -1220,14 +1231,16 @@ def fetch_accounts(force=False):
         codex = fetch_codex_accounts(force=True)
         claude = fetch_claude_accounts(force=True)
         openrouter = fetch_openrouter_accounts(force=True)
-        data = build_account_overview(codex, claude, openrouter, fetched=True)
+        deepseek = fetch_deepseek_accounts(force=True)
+        data = build_account_overview(codex, claude, openrouter, deepseek, fetched=True)
         ACCOUNT_OVERVIEW_CACHE["data"] = data
         ACCOUNT_OVERVIEW_CACHE["expires_at"] = now + ACCOUNT_OVERVIEW_CACHE_SECONDS
         return data
     codex = fetch_codex_accounts(force=force)
     claude = fetch_claude_accounts(force=force)
     openrouter = fetch_openrouter_accounts(force=force)
-    data = build_account_overview(codex, claude, openrouter, fetched=True)
+    deepseek = fetch_deepseek_accounts(force=force)
+    data = build_account_overview(codex, claude, openrouter, deepseek, fetched=True)
     ACCOUNT_OVERVIEW_CACHE["data"] = data
     ACCOUNT_OVERVIEW_CACHE["expires_at"] = now + ACCOUNT_OVERVIEW_CACHE_SECONDS
     return data
@@ -1238,6 +1251,7 @@ def fetch_account_provider(kind, force=False):
         "codex": fetch_codex_accounts,
         "claude": fetch_claude_accounts,
         "openrouter": fetch_openrouter_accounts,
+        "deepseek": fetch_deepseek_accounts,
     }
     fetcher = fetchers.get(kind)
     if not fetcher:
@@ -1259,6 +1273,10 @@ def build_account_provider(kind, data):
             "OpenRouter",
             "Verified OpenRouter key status, credit usage, limits, and masked metadata.",
         ),
+        "deepseek": (
+            "DeepSeek",
+            "Verified DeepSeek key status, balance, and masked metadata.",
+        ),
     }
     label, description = metadata[kind]
     return {
@@ -1274,11 +1292,12 @@ def build_account_provider(kind, data):
     }
 
 
-def build_account_overview(codex, claude, openrouter, fetched=True):
+def build_account_overview(codex, claude, openrouter, deepseek, fetched=True):
     providers = [
         build_account_provider("codex", codex),
         build_account_provider("claude", claude),
         build_account_provider("openrouter", openrouter),
+        build_account_provider("deepseek", deepseek),
     ]
     return {
         "generatedAt": datetime.now(timezone.utc),
@@ -1298,6 +1317,7 @@ def build_account_overview(codex, claude, openrouter, fetched=True):
         "codex": codex,
         "claude": claude,
         "openrouter": openrouter,
+        "deepseek": deepseek,
         "providers": providers,
     }
 
@@ -1962,6 +1982,179 @@ def fetch_openrouter_key_info(api_key):
         }
 
 
+def empty_deepseek_accounts():
+    return {
+        "generatedAt": datetime.now(timezone.utc),
+        "configuredRaw": "DEEPSEEK_API_KEY",
+        "active": 0,
+        "total": 0,
+        "limited": 0,
+        "accounts": [],
+    }
+
+
+def fetch_deepseek_accounts(force=False):
+    api_key = configured_secret("DEEPSEEK_API_KEY") or configured_secret(
+        "EXECUTOR_VIEW_DEEPSEEK_API_KEY"
+    )
+    if not api_key:
+        account = {
+            "provider": "DeepSeek",
+            "label": "DeepSeek API key",
+            "path": "DEEPSEEK_API_KEY",
+            "active": False,
+            "status": "missing key",
+            "statusKind": "missing",
+            "details": [],
+        }
+        return {
+            "generatedAt": datetime.now(timezone.utc),
+            "configuredRaw": "DEEPSEEK_API_KEY",
+            "active": 0,
+            "total": 0,
+            "limited": 0,
+            "accounts": [account],
+        }
+
+    remote = (
+        deepseek_key_info_for_account(api_key, force=force)
+        if os.getenv("EXECUTOR_VIEW_DEEPSEEK_REMOTE_CHECK", "1").lower()
+        in ("1", "true", "yes")
+        else {}
+    )
+    payload = remote.get("data") if isinstance(remote.get("data"), dict) else {}
+    status_code = remote.get("statusCode")
+    is_available = bool(payload.get("is_available"))
+    balance_infos = payload.get("balance_infos")
+    if status_code in (401, 403):
+        status_kind = "expired"
+        status = "key rejected"
+        active = False
+    elif remote.get("error"):
+        status_kind = "warning"
+        status = "check failed"
+        active = True
+    elif payload:
+        status_kind = "available" if is_available else "warning"
+        status = "verified" if is_available else "balance unavailable"
+        active = is_available
+    else:
+        status_kind = "available"
+        status = "key configured"
+        active = True
+
+    details = []
+    add_detail(details, "DEEPSEEK_API_KEY", masked_secret(api_key), mono=True)
+    add_detail(details, "Key fingerprint", secret_fingerprint(api_key), mono=True)
+    if isinstance(balance_infos, list):
+        for info in balance_infos:
+            if not isinstance(info, dict):
+                continue
+            currency = str(info.get("currency") or "USD").upper()
+            total = info.get("total_balance")
+            if total is not None:
+                add_detail(details, f"Balance ({currency})", str(total))
+            granted = info.get("granted_balance")
+            if granted is not None:
+                add_detail(details, f"Granted ({currency})", str(granted))
+            topped_up = info.get("topped_up_balance")
+            if topped_up is not None:
+                add_detail(details, f"Topped up ({currency})", str(topped_up))
+    if remote.get("checkedAt"):
+        add_detail(details, "Checked at", remote["checkedAt"])
+    if remote.get("stale"):
+        add_detail(details, "Stale", "Showing cached balance data")
+
+    account = {
+        "provider": "DeepSeek",
+        "label": "DeepSeek API key",
+        "path": "DEEPSEEK_API_KEY",
+        "active": active,
+        "status": status,
+        "statusKind": status_kind,
+        "details": details,
+    }
+    return {
+        "generatedAt": datetime.now(timezone.utc),
+        "configuredRaw": "DEEPSEEK_API_KEY",
+        "active": 1 if active else 0,
+        "total": 1,
+        "limited": 0,
+        "accounts": [account],
+    }
+
+
+def deepseek_key_info_for_account(api_key, force=False):
+    now = time.monotonic()
+    credential = secret_fingerprint(api_key)
+    cached = (
+        DEEPSEEK_KEY_CACHE.get("data")
+        if DEEPSEEK_KEY_CACHE.get("credential") == credential
+        else None
+    )
+    if cached and now < DEEPSEEK_KEY_CACHE.get("expires_at", 0):
+        return cached
+    if not force:
+        if cached:
+            fallback = dict(cached)
+            fallback["stale"] = True
+            fallback["error"] = "DeepSeek key data is waiting for refresh"
+            return fallback
+        return {}
+
+    result = fetch_deepseek_balance(api_key)
+    if isinstance(result.get("data"), dict) and result["data"]:
+        DEEPSEEK_KEY_CACHE["data"] = result
+        DEEPSEEK_KEY_CACHE["credential"] = credential
+        DEEPSEEK_KEY_CACHE["expires_at"] = now + DEEPSEEK_KEY_CACHE_SECONDS
+        return result
+    if cached:
+        fallback = dict(result)
+        fallback["data"] = cached.get("data")
+        fallback["stale"] = True
+        DEEPSEEK_KEY_CACHE["data"] = fallback
+        DEEPSEEK_KEY_CACHE["credential"] = credential
+        DEEPSEEK_KEY_CACHE["expires_at"] = now + DEEPSEEK_KEY_CACHE_SECONDS
+        return fallback
+    DEEPSEEK_KEY_CACHE["data"] = result
+    DEEPSEEK_KEY_CACHE["credential"] = credential
+    DEEPSEEK_KEY_CACHE["expires_at"] = now + DEEPSEEK_KEY_CACHE_SECONDS
+    return result
+
+
+def fetch_deepseek_balance(api_key):
+    checked_at = datetime.now(timezone.utc)
+    req = urlrequest.Request(
+        DEEPSEEK_BALANCE_URL,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+            "User-Agent": "open-kritt-executor-view",
+        },
+        method="GET",
+    )
+    try:
+        with urlrequest.urlopen(req, timeout=DEEPSEEK_TIMEOUT_SECONDS) as response:
+            body = response.read(1024 * 256)
+            payload = json.loads(body.decode("utf-8"))
+            return {
+                "checkedAt": checked_at.isoformat(),
+                "statusCode": response.status,
+                "data": payload if isinstance(payload, dict) else {},
+            }
+    except urlerror.HTTPError as exc:
+        return {
+            "checkedAt": checked_at.isoformat(),
+            "statusCode": exc.code,
+            "error": f"DeepSeek returned HTTP {exc.code}",
+        }
+    except (OSError, TimeoutError, json.JSONDecodeError) as exc:
+        return {
+            "checkedAt": checked_at.isoformat(),
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+
 def configured_secret(name):
     if name == "OPENROUTER_API_KEY":
         state = managed_provider_credential_state()
@@ -1969,6 +2162,13 @@ def configured_secret(name):
         if managed:
             return managed
         if "openrouter" in state["disabledEnvironmentProviders"]:
+            return None
+    if name == "DEEPSEEK_API_KEY":
+        state = managed_provider_credential_state()
+        managed = state["credentials"].get("deepseek")
+        if managed:
+            return managed
+        if "deepseek" in state["disabledEnvironmentProviders"]:
             return None
     value = os.getenv(name)
     value = value.strip() if isinstance(value, str) else ""
@@ -1992,13 +2192,16 @@ def managed_provider_credential_state():
         value = raw_credentials.get("openrouter")
         if isinstance(value, str) and value.strip():
             credentials["openrouter"] = value.strip()
+        value = raw_credentials.get("deepseek")
+        if isinstance(value, str) and value.strip():
+            credentials["deepseek"] = value.strip()
 
     raw_disabled = payload.get("disabledEnvironmentProviders")
     disabled = (
         {
             provider
             for provider in raw_disabled
-            if isinstance(provider, str) and provider == "openrouter"
+            if isinstance(provider, str) and provider in {"openrouter", "deepseek"}
         }
         if isinstance(raw_disabled, list)
         else set()
@@ -4345,7 +4548,7 @@ class Handler(BaseHTTPRequestHandler):
         if (
             len(parts) == 3
             and parts[:2] == ["api", "accounts"]
-            and parts[2] in {"codex", "claude", "openrouter"}
+            and parts[2] in {"codex", "claude", "openrouter", "deepseek"}
         ):
             try:
                 query = parse_qs(parsed.query)

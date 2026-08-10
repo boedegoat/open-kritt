@@ -1,4 +1,4 @@
-export const MODEL_PROVIDER_IDS = ['codex', 'claude', 'openrouter'];
+export const MODEL_PROVIDER_IDS = ['codex', 'claude', 'openrouter', 'deepseek'];
 export const MODEL_CATALOG_STATUSES = ['ready', 'loading', 'unavailable'];
 const SAFE_MODEL_NOTE_URLS = new Set(['https://chatgpt.com/cyber']);
 
@@ -8,18 +8,21 @@ const PROVIDER_HARNESSES = {
   // Claude Code has first-class OpenRouter support. Codex remains available
   // for advanced installations with a matching Codex provider configuration.
   openrouter: ['claude-code', 'codex'],
+  deepseek: ['codex'],
 };
 
 const PROVIDER_DEFAULT_MODELS = {
   codex: 'gpt-5-codex',
   claude: 'claude-sonnet-5',
   openrouter: 'z-ai/glm-5.2',
+  deepseek: 'deepseek-chat',
 };
 
 const PROVIDER_THINKING_EFFORTS = {
   codex: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   claude: ['low', 'medium', 'high', 'xhigh', 'max'],
   openrouter: ['default', 'low', 'medium', 'high', 'xhigh', 'max'],
+  deepseek: ['default'],
 };
 
 const HARNESS_THINKING_EFFORTS = {

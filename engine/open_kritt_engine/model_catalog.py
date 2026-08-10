@@ -24,6 +24,8 @@ LOGGER = logging.getLogger("open_kritt_engine")
 ANTHROPIC_MODELS_URL = "https://api.anthropic.com/v1/models"
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models/user"
 OPENROUTER_DEFAULT_MODEL_ID = "z-ai/glm-5.2"
+DEEPSEEK_MODELS_URL = "https://api.deepseek.com/models"
+DEEPSEEK_DEFAULT_MODEL_ID = "deepseek-chat"
 CATALOG_REFRESH_ERROR = "Unable to refresh the provider model catalog."
 MAX_CATALOG_MODELS = 500
 MAX_CATALOG_PAGES = 10
@@ -440,6 +442,52 @@ def fetch_openrouter_models(api_key: str, timeout_seconds: float) -> tuple[list[
     return models, default_model
 
 
+def fetch_deepseek_models(api_key: str, timeout_seconds: float) -> tuple[list[dict[str, Any]], str]:
+    """List text models available under the configured DeepSeek account."""
+
+    request = Request(
+        DEEPSEEK_MODELS_URL,
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+    try:
+        with urlopen(request, timeout=max(1.0, timeout_seconds)) as response:  # noqa: S310 - fixed provider URL
+            raw_payload = response.read(MAX_HTTP_CATALOG_BYTES + 1)
+        if len(raw_payload) > MAX_HTTP_CATALOG_BYTES:
+            raise ModelCatalogError("DeepSeek model catalog response was too large")
+        payload = json.loads(raw_payload)
+    except (HTTPError, URLError, OSError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ModelCatalogError("Could not read the DeepSeek model catalog") from exc
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+        raise ModelCatalogError("DeepSeek model catalog response was invalid")
+
+    entries: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for raw in payload["data"]:
+        if not isinstance(raw, Mapping):
+            continue
+        model_id = _clean_text(raw.get("id"))
+        if not model_id or model_id in seen_ids:
+            continue
+        seen_ids.add(model_id)
+        entries.append(
+            {
+                "model": model_id,
+                "displayName": raw.get("name") or model_id,
+                "supportedReasoningEfforts": ["default"],
+                "isDefault": model_id == DEEPSEEK_DEFAULT_MODEL_ID,
+            }
+        )
+        if len(entries) > MAX_CATALOG_MODELS:
+            candidate = entries.pop()
+            if candidate["isDefault"] and not any(entry["isDefault"] for entry in entries):
+                entries[-1] = candidate
+
+    models, default_model = normalize_catalog_models(entries)
+    if not models:
+        raise ModelCatalogError("DeepSeek model catalog was empty")
+    return models, default_model
+
+
 CatalogFetcher = Callable[[], tuple[list[dict[str, Any]], str]]
 
 
@@ -455,6 +503,7 @@ class ModelCatalogRefresher:
         fetch_codex: CatalogFetcher | None = None,
         fetch_anthropic: CatalogFetcher | None = None,
         fetch_openrouter: CatalogFetcher | None = None,
+        fetch_deepseek: CatalogFetcher | None = None,
         codex_cli_gate: Any | None = None,
     ):
         self.db = db
@@ -463,6 +512,7 @@ class ModelCatalogRefresher:
         self.fetch_codex = fetch_codex
         self.fetch_anthropic = fetch_anthropic
         self.fetch_openrouter = fetch_openrouter
+        self.fetch_deepseek = fetch_deepseek
         self.codex_cli_gate = codex_cli_gate
 
     def refresh(self, env: Mapping[str, str] | None = None) -> dict[str, bool]:
@@ -489,6 +539,11 @@ class ModelCatalogRefresher:
                 lambda: fetch_openrouter_models(env["OPENROUTER_API_KEY"], self.timeout_seconds)
             )
             outcomes["openrouter"] = self._refresh_provider("openrouter", fetch_openrouter)
+        if _clean_text(env.get("DEEPSEEK_API_KEY")):
+            fetch_deepseek = self.fetch_deepseek or (
+                lambda: fetch_deepseek_models(env["DEEPSEEK_API_KEY"], self.timeout_seconds)
+            )
+            outcomes["deepseek"] = self._refresh_provider("deepseek", fetch_deepseek)
         return outcomes
 
     def _refresh_provider(self, provider: str, fetcher: CatalogFetcher) -> bool:

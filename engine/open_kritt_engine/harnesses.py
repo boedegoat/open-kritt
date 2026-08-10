@@ -160,6 +160,7 @@ TOOL_FREE_CODEX_DISABLED_FEATURES = (
 OPENROUTER_CLAUDE_BASE_URL = "https://openrouter.ai/api"
 OPENROUTER_CURSOR_BASE_URL = "https://openrouter.ai/api/v1/cursor"
 OPENROUTER_CODEX_BASE_URL = "https://openrouter.ai/api/v1"
+DEEPSEEK_CODEX_BASE_URL = "https://api.deepseek.com/v1"
 OPENROUTER_MODEL_ALIASES = {
     "glm-5.2": "z-ai/glm-5.2",
     "grok-4.5": "x-ai/grok-4.5",
@@ -169,7 +170,7 @@ CLAUDE_MODEL_ALIASES = {
     "opus-4.8": "claude-opus-4-8",
 }
 DEFAULT_MODEL_PROVIDER = "openrouter"
-MODEL_PROVIDERS = {"codex", "claude", "openrouter"}
+MODEL_PROVIDERS = {"codex", "claude", "openrouter", "deepseek"}
 CLAUDE_WORKSPACE_SYSTEM_PROMPT = (
     "Use only files under the current working directory and dependency paths listed in WORKSPACE.json. "
     "Do not search from filesystem root (/), /data, /root, /home, or other global paths. "
@@ -504,7 +505,11 @@ def _classify_harness_output(output: str, *, provider: str | None = None) -> str
             "quota temporarily exceeded",
         )
     )
-    if rate_limit_signal or _has_http_status(normalized, 429) or (provider == "openrouter" and quota_signal):
+    if (
+        rate_limit_signal
+        or _has_http_status(normalized, 429)
+        or (provider in {"openrouter", "deepseek"} and quota_signal)
+    ):
         return "rate_limited"
     if quota_signal:
         return "quota_exceeded"
@@ -617,6 +622,22 @@ def _uses_openrouter(cmd: list[str], env: dict[str, str]) -> bool:
     return "openrouter.ai" in command or 'model_provider="openrouter"' in command
 
 
+def _uses_deepseek(cmd: list[str], env: dict[str, str]) -> bool:
+    base_urls = (env.get("OPENAI_BASE_URL"),)
+    if any("api.deepseek.com" in str(value).lower() for value in base_urls if value):
+        return True
+    command = " ".join(str(part) for part in cmd).lower()
+    return "api.deepseek.com" in command or 'model_provider="deepseek"' in command
+
+
+def _run_provider(cmd: list[str], env: dict[str, str]) -> str | None:
+    if _uses_openrouter(cmd, env):
+        return "openrouter"
+    if _uses_deepseek(cmd, env):
+        return "deepseek"
+    return None
+
+
 def _run_process(cmd, prompt, cwd, timeout, env=None):
     harness = _command_harness(cmd)
     process_env = env if env is not None else _base_env()
@@ -657,7 +678,7 @@ def _run_process(cmd, prompt, cwd, timeout, env=None):
             harness=harness,
             exit_code=proc.returncode,
             output_artifact=_process_output(proc),
-            provider="openrouter" if _uses_openrouter(cmd, process_env) else None,
+            provider=_run_provider(cmd, process_env),
         )
     return proc
 
@@ -832,6 +853,7 @@ def _scan_docker_command(
         "CODEX_API_KEY",
         "OPENAI_API_KEY",
         "OPENROUTER_API_KEY",
+        "DEEPSEEK_API_KEY",
         "ANTHROPIC_BASE_URL",
         "ANTHROPIC_AUTH_TOKEN",
         "ANTHROPIC_API_KEY",
@@ -924,6 +946,8 @@ def codex_cli_model_provider(
         return None
     if selected == "openrouter":
         return (configured or "openrouter") if allow_tools else "openrouter"
+    if selected == "deepseek":
+        return (configured or "deepseek") if allow_tools else "deepseek"
     return selected or configured
 
 
@@ -1406,6 +1430,13 @@ def codex_exec_command(
         command.extend(["-c", f'model_providers.openrouter.base_url="{OPENROUTER_CODEX_BASE_URL}"'])
         command.extend(["-c", 'model_providers.openrouter.env_key="OPENROUTER_API_KEY"'])
         command.extend(["-c", 'model_providers.openrouter.wire_api="responses"'])
+    if not allow_tools and cli_model_provider == "deepseek":
+        # DeepSeek exposes an OpenAI-compatible endpoint; the pinned Codex CLI
+        # supports it only through its responses wire API, which DeepSeek mirrors.
+        command.extend(["-c", 'model_providers.deepseek.name="DeepSeek"'])
+        command.extend(["-c", f'model_providers.deepseek.base_url="{DEEPSEEK_CODEX_BASE_URL}"'])
+        command.extend(["-c", 'model_providers.deepseek.env_key="DEEPSEEK_API_KEY"'])
+        command.extend(["-c", 'model_providers.deepseek.wire_api="responses"'])
     if cli_model_provider:
         command.extend(["-c", f"model_provider={json.dumps(cli_model_provider)}"])
     if thinking_effort and thinking_effort != "default":
@@ -1562,7 +1593,13 @@ class CodexHarness:
                     harness="codex",
                     default_code="invalid_output",
                     output_artifact=process_output,
-                    provider="openrouter" if normalize_model_provider(self.model_provider) == "openrouter" else None,
+                    provider=(
+                        "openrouter"
+                        if normalize_model_provider(self.model_provider) == "openrouter"
+                        else "deepseek"
+                        if normalize_model_provider(self.model_provider) == "deepseek"
+                        else None
+                    ),
                 ) from payload_error
             return HarnessResult(payload=parsed_payload, usage=usage, codex_session_id=thread_id, output=process_output)
 
@@ -1644,7 +1681,13 @@ class CodexHarness:
                 harness="codex",
                 default_code="invalid_output",
                 output_artifact=process_output,
-                provider="openrouter" if normalize_model_provider(self.model_provider) == "openrouter" else None,
+                provider=(
+                    "openrouter"
+                    if normalize_model_provider(self.model_provider) == "openrouter"
+                    else "deepseek"
+                    if normalize_model_provider(self.model_provider) == "deepseek"
+                    else None
+                ),
             ) from payload_error
         return HarnessResult(
             payload=parsed_payload, usage=usage, codex_session_id=thread_id or session_id, output=process_output

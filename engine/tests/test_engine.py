@@ -3054,6 +3054,75 @@ def test_post_processing_does_not_retry_permanent_harness_failures(monkeypatch, 
     assert not root.exists()
 
 
+def test_post_processing_retry_feeds_schema_validation_error_back_to_the_model(monkeypatch, tmp_path):
+    root = tmp_path / "post-job"
+    root.mkdir()
+
+    class Workspace:
+        root_dir = str(root)
+        env = {"HOME": "/tmp/home"}
+
+    class FakePostDb:
+        def __init__(self):
+            self.updates = []
+
+        @contextmanager
+        def connect(self):
+            yield FakeConn()
+
+        def update_post_process_metadata(self, _conn, metadata_id, **kwargs):
+            self.updates.append({"metadata_id": metadata_id, **kwargs})
+
+    schema = output_schema(
+        {"reasoning": "string", "missing_from_prompt": "string", "_chip_score": "number"},
+        multi_output=False,
+    )
+    payloads = [
+        {"_kritt_extractor_helper": True, "stub": False, "stub_explanation": "", "results": [{"reasoning": "x"}]},
+        {
+            "_kritt_extractor_helper": True,
+            "stub": False,
+            "stub_explanation": "",
+            "results": [{"reasoning": "x", "missing_from_prompt": "y", "_chip_score": 5}],
+        },
+    ]
+
+    def validator(payload):
+        return validate_payload(payload, schema, multi_output=False)
+
+    prepared = SimpleNamespace(
+        workspace=Workspace(),
+        repo_dir="/tmp/post-repo",
+        checked_out_commit="def",
+        layout="Dependency repositories are checked out as top-level directories inside the same workspace root.",
+        manifest_json='{"dependencies":[]}',
+    )
+    monkeypatch.setattr(post_processing_module, "prepare_dependency_workspace", lambda **_kwargs: prepared)
+    fake_db = FakePostDb()
+    processor = PostProcessor(SimpleNamespace(retry_count=2, data_dir="/tmp", github_token=None), fake_db)
+    fake_harness = FakeHarness(payloads)
+
+    payload, usage, _session, checked_out_commit = processor._run_harness_with_retries(
+        metadata_id=9,
+        scan=scan(),
+        harness=fake_harness,
+        prompt="Ease of exploitability.",
+        schema=schema,
+        validator=validator,
+        kind="post_script",
+    )
+
+    assert payload["results"][0]["missing_from_prompt"] == "y"
+    assert len(fake_harness.calls) == 2
+    first_prompt = fake_harness.calls[0]["prompt"]
+    second_prompt = fake_harness.calls[1]["prompt"]
+    assert first_prompt != second_prompt
+    assert "missing_from_prompt" in second_prompt
+    assert "rejected because it did not match the required output schema" in second_prompt
+    assert "Validation error:" in second_prompt
+    assert not root.exists()
+
+
 def test_post_processing_preserves_rate_limit_for_scan_retry(monkeypatch, tmp_path):
     root = tmp_path / "post-job"
     root.mkdir()
