@@ -3,15 +3,12 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar.jsx';
 import Topbar from './Topbar.jsx';
 import ShareResultDialog from './ShareResultDialog.jsx';
-import { useTheme } from '../context/ui.jsx';
 
 export default function Layout() {
-  const { theme } = useTheme();
   const [communityShareOpen, setCommunityShareOpen] = useState(false);
   return (
     <div
       className="app-shell"
-      data-theme={theme}
       style={{
         display: 'flex',
         height: '100vh',

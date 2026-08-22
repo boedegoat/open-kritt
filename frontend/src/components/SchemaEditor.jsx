@@ -69,18 +69,36 @@ export default function SchemaEditor({
     background: active ? 'var(--surface)' : 'transparent',
     color: active ? 'var(--text)' : 'var(--text-3)',
     cursor: 'pointer',
+    border: 'none',
+    font: 'inherit',
   });
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <div className="mono" style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 7, padding: 2 }}>
-          <span style={tab(mode === 'visual')} onClick={mode !== 'visual' ? onToggleMode : undefined}>
+        <div
+          className="mono"
+          role="tablist"
+          style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 7, padding: 2 }}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'visual'}
+            style={tab(mode === 'visual')}
+            onClick={mode !== 'visual' ? onToggleMode : undefined}
+          >
             visual
-          </span>
-          <span style={tab(mode === 'raw')} onClick={mode !== 'raw' ? onToggleMode : undefined}>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'raw'}
+            style={tab(mode === 'raw')}
+            onClick={mode !== 'raw' ? onToggleMode : undefined}
+          >
             json
-          </span>
+          </button>
         </div>
       </div>
 
@@ -133,8 +151,10 @@ export default function SchemaEditor({
                       </option>
                     ))}
                   </select>
-                  <span
+                  <button
+                    type="button"
                     onClick={() => removeRow(idx)}
+                    aria-label={`Remove field ${row.key || idx + 1}`}
                     style={{
                       color: 'var(--text-3)',
                       fontSize: 16,
@@ -142,10 +162,14 @@ export default function SchemaEditor({
                       flex: 'none',
                       width: 16,
                       textAlign: 'center',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      font: 'inherit',
                     }}
                   >
                     ×
-                  </span>
+                  </button>
                 </div>
                 {err && (
                   <div className="mono" style={{ fontSize: 10.5, color: 'var(--fail)', margin: '4px 0 0 2px' }}>
@@ -155,10 +179,12 @@ export default function SchemaEditor({
               </div>
             );
           })}
-          <div
+          <button
+            type="button"
             onClick={addRow}
             className="mono"
             style={{
+              width: '100%',
               height: 34,
               display: 'flex',
               alignItems: 'center',
@@ -168,10 +194,12 @@ export default function SchemaEditor({
               fontSize: 11.5,
               color: 'var(--text-2)',
               cursor: 'pointer',
+              background: 'none',
+              font: 'inherit',
             }}
           >
             + add field
-          </div>
+          </button>
         </div>
       ) : (
         <>

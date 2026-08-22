@@ -203,9 +203,11 @@ export default function WorkflowDetail() {
                 </div>
                 <div style={{ display: 'flex', gap: 18, justifyContent: 'center', flexWrap: 'wrap' }}>
                   {level.steps.map((step) => (
-                    <div
+                    <button
+                      type="button"
                       key={step.id}
                       onClick={() => setSelStepId(step.id)}
+                      aria-pressed={selStepId === step.id}
                       style={{
                         width: 300,
                         border: `1px solid ${selStepId === step.id ? 'var(--accent)' : 'var(--border)'}`,
@@ -214,6 +216,11 @@ export default function WorkflowDetail() {
                         boxShadow: 'var(--shadow)',
                         cursor: 'pointer',
                         overflow: 'hidden',
+                        display: 'block',
+                        textAlign: 'left',
+                        font: 'inherit',
+                        color: 'inherit',
+                        padding: 0,
                       }}
                     >
                       <div style={{ padding: '13px 15px 11px' }}>
@@ -266,7 +273,7 @@ export default function WorkflowDetail() {
                             </span>
                           ))}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
                 {i < levels.length - 1 && <Connector level={level} next={levels[i + 1]} />}

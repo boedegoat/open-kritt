@@ -703,9 +703,11 @@ export default function ScanDetail() {
                       minWidth: 0,
                     }}
                   >
-                    <span
+                    <button
+                      type="button"
                       onClick={(e) => cycleInteresting(v, e)}
                       title={dot.title}
+                      aria-label={dot.title}
                       style={{
                         position: 'relative',
                         zIndex: 2,
@@ -715,6 +717,9 @@ export default function ScanDetail() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         cursor: 'pointer',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
                       }}
                     >
                       <span
@@ -726,7 +731,7 @@ export default function ScanDetail() {
                           border: `1.5px solid ${dot.border}`,
                         }}
                       />
-                    </span>
+                    </button>
                     <span
                       className="mono"
                       style={{

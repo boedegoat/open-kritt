@@ -582,7 +582,8 @@ export default function WorkflowBuilder() {
                     >
                       + insert before
                     </button>
-                    <span
+                    <button
+                      type="button"
                       onClick={() => addSibling(level.depth)}
                       className="mono"
                       style={{
@@ -592,10 +593,12 @@ export default function WorkflowBuilder() {
                         border: '1px dashed var(--accent)',
                         borderRadius: 5,
                         padding: '1px 6px',
+                        background: 'transparent',
+                        font: 'inherit',
                       }}
                     >
                       + sibling
-                    </span>
+                    </button>
                   </div>
                   <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
                     {level.steps.map((step) => {
@@ -604,7 +607,16 @@ export default function WorkflowBuilder() {
                       return (
                         <div
                           key={step.id}
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={selected}
                           onClick={() => mut((n) => (n.selStepId = step.id))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              mut((n) => (n.selStepId = step.id));
+                            }
+                          }}
                           style={{
                             width: 268,
                             border: `${valid ? 1.5 : 2}px solid ${valid ? (selected ? 'var(--accent)' : 'var(--border)') : 'var(--fail)'}`,
@@ -663,15 +675,26 @@ export default function WorkflowBuilder() {
                                 </span>
                               </div>
                               {(b.levels.length > 1 || level.steps.length > 1) && (
-                                <span
+                                <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     removeStep(step.id);
                                   }}
-                                  style={{ color: 'var(--text-3)', fontSize: 15, lineHeight: 1, flex: 'none' }}
+                                  aria-label={`Remove step ${step.name || 'Untitled step'}`}
+                                  style={{
+                                    color: 'var(--text-3)',
+                                    fontSize: 15,
+                                    lineHeight: 1,
+                                    flex: 'none',
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    font: 'inherit',
+                                  }}
                                 >
                                   ×
-                                </span>
+                                </button>
                               )}
                             </div>
                             <div
@@ -700,7 +723,8 @@ export default function WorkflowBuilder() {
                 </div>
               );
             })}
-            <div
+            <button
+              type="button"
               onClick={addLevel}
               className="mono"
               style={{
@@ -715,10 +739,13 @@ export default function WorkflowBuilder() {
                 fontSize: 12.5,
                 color: 'var(--text-2)',
                 cursor: 'pointer',
+                background: 'transparent',
+                font: 'inherit',
+                width: '100%',
               }}
             >
               + add depth level
-            </div>
+            </button>
           </div>
         </div>
 
@@ -832,7 +859,8 @@ export default function WorkflowBuilder() {
               </Label>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {[...earlierKeys(selLevel.depth).entries()].map(([name, from]) => (
-                  <span
+                  <button
+                    type="button"
                     key={name}
                     onClick={() => editorRef.current?.insert(name)}
                     className="mono"
@@ -844,14 +872,16 @@ export default function WorkflowBuilder() {
                       background: 'var(--surface-2)',
                       border: '1px solid var(--border-2)',
                       cursor: 'pointer',
+                      font: 'inherit',
                     }}
                   >
                     {name}
                     <span style={{ color: 'var(--text-3)' }}> · {from}</span>
-                  </span>
+                  </button>
                 ))}
                 {/* Dynamic extra context — inserts {{extra.}} for you to name the sub-key. */}
-                <span
+                <button
+                  type="button"
                   onClick={() => editorRef.current?.insert('extra.')}
                   className="mono"
                   style={{
@@ -862,10 +892,11 @@ export default function WorkflowBuilder() {
                     background: 'var(--accent-subtle)',
                     border: '1px solid var(--accent-subtle)',
                     cursor: 'pointer',
+                    font: 'inherit',
                   }}
                 >
                   extra.&lt;key&gt;<span style={{ color: 'var(--text-3)' }}> · dynamic</span>
-                </span>
+                </button>
               </div>
 
               <div
@@ -1009,6 +1040,8 @@ function ConsumeToggle({ depth, batched, onOne, onAll }) {
     background: active ? 'var(--surface)' : 'transparent',
     color: active ? 'var(--text)' : 'var(--text-3)',
     boxShadow: active ? 'var(--shadow)' : 'none',
+    border: 'none',
+    font: 'inherit',
   });
   return (
     <div style={{ marginBottom: 20 }}>
@@ -1044,13 +1077,17 @@ function ConsumeToggle({ depth, batched, onOne, onAll }) {
             i
           </span>
         </span>
-        <div className="mono" style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 7, padding: 2 }}>
-          <span onClick={onOne} style={opt(!batched)}>
+        <div
+          className="mono"
+          role="tablist"
+          style={{ display: 'flex', background: 'var(--surface-2)', borderRadius: 7, padding: 2 }}
+        >
+          <button type="button" role="tab" aria-selected={!batched} onClick={onOne} style={opt(!batched)}>
             one at a time
-          </span>
-          <span onClick={onAll} style={opt(batched)}>
+          </button>
+          <button type="button" role="tab" aria-selected={batched} onClick={onAll} style={opt(batched)}>
             all at once
-          </span>
+          </button>
         </div>
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 7, lineHeight: 1.5 }}>{explain}</div>
@@ -1138,7 +1175,8 @@ function LastStepBox({ missing, invalidTypes, onAddAll }) {
         <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <span style={{ fontSize: 12, color: 'var(--fail)' }}>Terminal step has vulnerability output issues:</span>
-            <span
+            <button
+              type="button"
               onClick={onAddAll}
               className="mono"
               style={{
@@ -1148,10 +1186,12 @@ function LastStepBox({ missing, invalidTypes, onAddAll }) {
                 border: '1px solid var(--accent)',
                 borderRadius: 5,
                 padding: '2px 7px',
+                background: 'transparent',
+                font: 'inherit',
               }}
             >
               fix all
-            </span>
+            </button>
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {missing.map((m) => (

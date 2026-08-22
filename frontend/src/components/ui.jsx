@@ -45,12 +45,23 @@ export function ErrorState({ error, onRetry }) {
       <div style={{ fontWeight: 600, marginBottom: 4 }}>Something went wrong</div>
       <div style={{ color: 'var(--text-2)' }}>{error?.message || 'Failed to load.'}</div>
       {onRetry && (
-        <span
+        <button
+          type="button"
           onClick={onRetry}
-          style={{ display: 'inline-block', marginTop: 10, color: 'var(--accent)', cursor: 'pointer', fontSize: 12.5 }}
+          style={{
+            display: 'inline-block',
+            marginTop: 10,
+            color: 'var(--accent)',
+            cursor: 'pointer',
+            fontSize: 12.5,
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            font: 'inherit',
+          }}
         >
           Try again →
-        </span>
+        </button>
       )}
     </div>
   );
@@ -103,7 +114,10 @@ export function StatusBadge({ status, reasoning, size = 'md' }) {
 
 export function Toggle({ on, onClick, label }) {
   return (
-    <span
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
       onClick={onClick}
       className="mono"
       style={{
@@ -114,6 +128,10 @@ export function Toggle({ on, onClick, label }) {
         color: 'var(--text-2)',
         cursor: 'pointer',
         userSelect: 'none',
+        background: 'none',
+        border: 'none',
+        padding: 0,
+        font: 'inherit',
       }}
     >
       {label}
@@ -126,6 +144,7 @@ export function Toggle({ on, onClick, label }) {
           position: 'relative',
           display: 'inline-block',
           transition: 'background .15s',
+          flex: 'none',
         }}
       >
         <span
@@ -141,7 +160,7 @@ export function Toggle({ on, onClick, label }) {
           }}
         />
       </span>
-    </span>
+    </button>
   );
 }
 
@@ -213,12 +232,37 @@ export function CardLinkOverlay({ to, label, style }) {
   );
 }
 
+// A tiny authored check/cross mark for KeyChip's ok/fail state — the app has
+// no icon library or icon system elsewhere, so this stays a narrow, local
+// SVG rather than standing in unicode glyphs or introducing a new dependency.
+function ResolveMark({ ok }) {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="none"
+      aria-hidden="true"
+      style={{ flex: 'none' }}
+    >
+      {ok ? (
+        <path d="M2 5.2L4.1 7.3L8 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M2.5 2.5L7.5 7.5M7.5 2.5L2.5 7.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      )}
+    </svg>
+  );
+}
+
 // A key chip — colored by whether the reference resolves.
 export function KeyChip({ name, ok = true, from }) {
   return (
     <span
       className="mono"
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
         fontSize: 11,
         padding: '3px 9px',
         borderRadius: 6,
@@ -227,7 +271,8 @@ export function KeyChip({ name, ok = true, from }) {
         border: `1px solid ${ok ? 'var(--ok-bg)' : 'var(--fail-bg)'}`,
       }}
     >
-      {ok ? '✓' : '✕'} {name}
+      <ResolveMark ok={ok} />
+      {name}
       {from && <span style={{ color: 'var(--text-3)' }}> · {from}</span>}
     </span>
   );

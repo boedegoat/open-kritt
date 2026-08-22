@@ -344,13 +344,24 @@ export const PromptEditor = forwardRef(function PromptEditor(
               <span className="mono" style={{ fontSize: 11, letterSpacing: '0.07em', color: 'var(--text-3)' }}>
                 {title.toUpperCase()}
               </span>
-              <span
+              <button
+                type="button"
                 onClick={() => setExpanded(false)}
                 title="Close (Esc)"
-                style={{ cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, lineHeight: 1 }}
+                aria-label="Close"
+                style={{
+                  cursor: 'pointer',
+                  color: 'var(--text-3)',
+                  fontSize: 20,
+                  lineHeight: 1,
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  font: 'inherit',
+                }}
               >
                 ×
-              </span>
+              </button>
             </div>
             <div style={{ flex: 1, minHeight: 0, padding: 18 }}>{surface(modalTaRef, modalBackRef, '100%')}</div>
             {paletteChips && paletteChips.length > 0 && (
@@ -371,7 +382,8 @@ export const PromptEditor = forwardRef(function PromptEditor(
                 </div>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                   {paletteChips.map((c, i) => (
-                    <span
+                    <button
+                      type="button"
                       key={i}
                       onClick={() => doInsert(c.token)}
                       className="mono"
@@ -383,10 +395,11 @@ export const PromptEditor = forwardRef(function PromptEditor(
                         color: c.accent ? 'var(--accent)' : 'var(--text-2)',
                         background: c.accent ? 'var(--accent-subtle)' : 'var(--surface-2)',
                         border: '1px solid var(--border-2)',
+                        font: 'inherit',
                       }}
                     >
                       {c.label}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>

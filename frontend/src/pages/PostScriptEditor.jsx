@@ -356,7 +356,8 @@ export default function PostScriptEditor() {
               </Label>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {[...BUILTIN_KEYS, EXTRA_KEY].map((k) => (
-                  <span
+                  <button
+                    type="button"
                     key={k}
                     onClick={() => insert(k === EXTRA_KEY ? `${EXTRA_KEY}.` : k)}
                     className="mono"
@@ -368,10 +369,11 @@ export default function PostScriptEditor() {
                       background: 'var(--surface-2)',
                       border: '1px solid var(--border-2)',
                       cursor: 'pointer',
+                      font: 'inherit',
                     }}
                   >
                     {k === EXTRA_KEY ? 'extra.<key>' : k}
-                  </span>
+                  </button>
                 ))}
               </div>
               <Label style={{ margin: '14px 0 8px' }}>
@@ -379,7 +381,8 @@ export default function PostScriptEditor() {
               </Label>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {[...REQUIRED_VULN_KEYS, ...OPTIONAL_VULN_KEYS].map((k) => (
-                  <span
+                  <button
+                    type="button"
                     key={k}
                     onClick={() => insert(k)}
                     className="mono"
@@ -391,10 +394,11 @@ export default function PostScriptEditor() {
                       background: 'var(--accent-subtle)',
                       border: '1px solid var(--accent-subtle)',
                       cursor: 'pointer',
+                      font: 'inherit',
                     }}
                   >
                     {k}
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>

@@ -121,9 +121,12 @@ export default function Scans() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
+      <div role="tablist" style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
         {FILTERS.map(([k, label]) => (
-          <span
+          <button
+            type="button"
+            role="tab"
+            aria-selected={filter === k}
             key={k}
             onClick={() => {
               setFilter(k);
@@ -136,10 +139,12 @@ export default function Scans() {
               cursor: 'pointer',
               background: filter === k ? 'var(--text)' : 'var(--surface-2)',
               color: filter === k ? 'var(--bg)' : 'var(--text-2)',
+              border: 'none',
+              font: 'inherit',
             }}
           >
             {label}
-          </span>
+          </button>
         ))}
       </div>
 

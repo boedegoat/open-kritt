@@ -203,8 +203,10 @@ export default function SeverityRankerEditor() {
           />
           {serverErrors[0] || errs[0] || 'Severity ranker is valid.'}
         </span>
-        <div
+        <button
+          type="button"
           onClick={save}
+          disabled={!canSave}
           style={{
             height: 36,
             padding: '0 20px',
@@ -216,6 +218,8 @@ export default function SeverityRankerEditor() {
             cursor: canSave ? 'pointer' : 'default',
             background: canSave ? 'var(--accent)' : 'var(--surface-2)',
             color: canSave ? 'var(--accent-fg)' : 'var(--text-3)',
+            border: 'none',
+            font: 'inherit',
           }}
         >
           {saving
@@ -225,7 +229,7 @@ export default function SeverityRankerEditor() {
               : id
                 ? 'Save changes'
                 : 'Create severity ranker'}
-        </div>
+        </button>
       </div>
     </div>
   );

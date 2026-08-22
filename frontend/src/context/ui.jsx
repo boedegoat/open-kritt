@@ -7,6 +7,10 @@ export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('ok-theme') || 'light');
   useEffect(() => {
     localStorage.setItem('ok-theme', theme);
+    // Applied to the document root (not just the authenticated app shell) so
+    // themed CSS custom properties also resolve on routes rendered outside
+    // Layout, such as the pre-auth Login page.
+    document.documentElement.dataset.theme = theme;
   }, [theme]);
   const toggle = useCallback(() => setTheme((t) => (t === 'light' ? 'dark' : 'light')), []);
   const value = useMemo(() => ({ theme, toggle }), [theme, toggle]);

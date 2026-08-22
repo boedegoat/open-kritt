@@ -254,8 +254,10 @@ export default function AgentSkillEditor() {
           />
           {serverErrors[0] || errs[0] || 'Agent skill is valid.'}
         </span>
-        <div
+        <button
+          type="button"
           onClick={save}
+          disabled={!canSave}
           style={{
             height: 36,
             padding: '0 20px',
@@ -267,6 +269,8 @@ export default function AgentSkillEditor() {
             cursor: canSave ? 'pointer' : 'default',
             background: canSave ? 'var(--accent)' : 'var(--surface-2)',
             color: canSave ? 'var(--accent-fg)' : 'var(--text-3)',
+            border: 'none',
+            font: 'inherit',
           }}
         >
           {saving
@@ -276,7 +280,7 @@ export default function AgentSkillEditor() {
               : id
                 ? 'Save changes'
                 : 'Create skill'}
-        </div>
+        </button>
       </div>
     </div>
   );
